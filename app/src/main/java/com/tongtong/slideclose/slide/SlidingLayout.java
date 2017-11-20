@@ -5,12 +5,14 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.Scroller;
 
+import com.tongtong.slideclose.MyApp;
 import com.tongtong.slideclose.R;
 
 /**
@@ -36,6 +38,8 @@ public class SlidingLayout extends FrameLayout {
     private int mLastTouchX;
     private int mLastTouchY;
     private boolean isConsumed = false;
+    private Activity mBeforeActivity;
+    private int offX;
 
     public SlidingLayout(Context context) {
         this(context, null);
@@ -55,6 +59,13 @@ public class SlidingLayout extends FrameLayout {
         mLeftShadow = getResources().getDrawable(R.drawable.left_shadow);
         int density = (int) getResources().getDisplayMetrics().density;
         mShadowWidth = SHADOW_WIDTH * density;
+        if (MyApp.mActivities.size() > 1) {
+            mBeforeActivity = MyApp.mActivities.get(MyApp.mActivities.size() - 2);
+            if (mBeforeActivity != null) {
+                offX = -mBeforeActivity.getWindowManager().getDefaultDisplay().getWidth() / 4;
+                mBeforeActivity.getWindow().getDecorView().setTranslationX(offX);
+            }
+        }
     }
 
     /**
@@ -114,7 +125,7 @@ public class SlidingLayout extends FrameLayout {
             case MotionEvent.ACTION_MOVE:
                 int deltaX = x - mLastTouchX;
                 int deltaY = y - mLastTouchY;
-
+                // 手指处于屏幕边缘，且横向滑动距离大于纵向滑动距离时，表示需要侧滑关闭
                 if (!isConsumed && mTouchDownX < (getWidth() / 10) && Math.abs(deltaX) > Math.abs(deltaY)) {
                     isConsumed = true;
                 }
@@ -126,6 +137,10 @@ public class SlidingLayout extends FrameLayout {
                         scrollTo(0, 0);
                     } else {
                         scrollBy(rightMovedX, 0);
+                        if (mBeforeActivity != null) {
+                            offX = rightMovedX < 0 ? offX + Math.abs(rightMovedX) / 4 : offX - Math.abs(rightMovedX) / 4;
+                            mBeforeActivity.getWindow().getDecorView().setTranslationX(offX);
+                        }
                     }
                 }
                 mLastTouchX = x;
@@ -153,12 +168,16 @@ public class SlidingLayout extends FrameLayout {
         int dx = -getScrollX();
         mScroller.startScroll(startX, 0, dx, 0, 300);
         invalidate();
+        offX = -getWidth() / 4;
     }
 
     /**
      * 滑动关闭
      */
     private void scrollClose() {
+        if (mBeforeActivity != null) {
+            mBeforeActivity.getWindow().getDecorView().setTranslationX(0);
+        }
         int startX = getScrollX();
         int dx = -getScrollX() - getWidth();
         mScroller.startScroll(startX, 0, dx, 0, 300);
